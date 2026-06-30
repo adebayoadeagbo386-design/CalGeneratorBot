@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import datetime
 import calendar
@@ -12,11 +13,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Get bot token from environment variable
-TOKEN = os.environ.get('BOT_TOKEN') or os.environ.get('TELEGRAM_BOT_TOKEN')
+# Get bot token from environment variable with better error handling
+def get_token():
+    """Get bot token from environment variables with fallbacks."""
+    token = os.environ.get('BOT_TOKEN')
+    if not token:
+        token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    if not token:
+        logger.error("❌ No BOT_TOKEN found in environment variables!")
+        logger.error("Please add BOT_TOKEN to your Railway Variables.")
+        logger.error("If you're testing locally, create a .env file.")
+        sys.exit(1)
+    return token
 
-if not TOKEN:
-    raise ValueError("No BOT_TOKEN found in environment variables!")
+TOKEN = get_token()
+logger.info("✅ Bot token loaded successfully!")
 
 # Store user's selected date
 user_selections = {}
@@ -87,12 +98,13 @@ I can help you select dates easily.
 **Commands:**
 /calendar - Open interactive calendar
 /help - Show this help message
+/my_date - Show your last selected date
 
 **Features:**
 • Interactive month/year navigation
 • Select any date
 • Get date in multiple formats
-• View upcoming events (coming soon)
+• Shows weekday/weekend status
 
 Just click /calendar to get started!
 """
@@ -232,6 +244,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 **Commands:**
 /start - Welcome message
 /calendar - Open the date picker
+/my_date - Show your last selected date
 /help - Show this help message
 
 **Features:**
@@ -265,21 +278,27 @@ async def my_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 def main() -> None:
     """Start the bot."""
-    # Create Application
-    application = Application.builder().token(TOKEN).build()
-    
-    # Add command handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("calendar", calendar_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("my_date", my_date))
-    
-    # Add callback handler for calendar button presses
-    application.add_handler(CallbackQueryHandler(calendar_callback))
-    
-    # Start the Bot
-    logger.info("CalGeneratorBot started! Press Ctrl+C to stop.")
-    application.run_polling()
+    try:
+        # Create Application
+        application = Application.builder().token(TOKEN).build()
+        
+        # Add command handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("calendar", calendar_command))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("my_date", my_date))
+        
+        # Add callback handler for calendar button presses
+        application.add_handler(CallbackQueryHandler(calendar_callback))
+        
+        # Start the Bot
+        logger.info("🚀 CalGeneratorBot started successfully!")
+        logger.info("📅 Press Ctrl+C to stop.")
+        application.run_polling()
+        
+    except Exception as e:
+        logger.error(f"❌ Fatal error: {e}")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
